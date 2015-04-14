@@ -68,6 +68,25 @@ func (s *compactEncoding) DecodeMsgpack(dec *msgpack.Decoder) error {
 
 //------------------------------------------------------------------------------
 
+type timeEncoding struct {
+	sec, usec int64
+}
+
+var (
+	_ msgpack.CustomEncoder = timeEncoding{}
+	_ msgpack.CustomDecoder = &timeEncoding{}
+)
+
+func (s timeEncoding) EncodeMsgpack(enc *msgpack.Encoder) error {
+	return enc.Encode(s.sec, s.usec)
+}
+
+func (s *timeEncoding) DecodeMsgpack(dec *msgpack.Decoder) error {
+	return dec.Decode(&s.sec, &s.usec)
+}
+
+//------------------------------------------------------------------------------
+
 type omitEmptyTest struct {
 	Foo string `msgpack:",omitempty"`
 	Bar string `msgpack:",omitempty"`
@@ -86,6 +105,10 @@ var binTests = []binTest{
 
 	{intSet{}, []byte{codes.FixedArrayLow}},
 	{intSet{8: struct{}{}}, []byte{codes.FixedArrayLow | 1, 0x8}},
+
+	{&timeEncoding{}, []byte{0x0, 0x0}},
+	{&timeEncoding{1414141414, 1234567890}, []byte{codes.Int32, 0x54, 0x4a, 0x15, 0xe6, codes.Int32, 0x49, 0x96, 0x02, 0xd2}},
+	{[]timeEncoding{{1414141414, 1234567890}}, []byte{codes.FixedArrayLow | 1, codes.Int32, 0x54, 0x4a, 0x15, 0xe6, codes.Int32, 0x49, 0x96, 0x02, 0xd2}},
 
 	{&compactEncoding{}, []byte{codes.FixedStrLow, codes.Nil, 0x0}},
 	{
